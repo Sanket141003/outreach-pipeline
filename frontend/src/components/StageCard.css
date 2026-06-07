@@ -1,0 +1,82 @@
+.stage-card {
+  background: #141418;
+  border: 1px solid #1e1e26;
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.stage-active {
+  border-color: #5c6aff;
+  box-shadow: 0 0 0 1px #5c6aff22;
+}
+
+.stage-done { border-color: #166534; }
+.stage-error { border-color: #7f1d1d; }
+
+.stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.stage-num {
+  width: 22px;
+  height: 22px;
+  background: #222228;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-icon {
+  font-size: 14px;
+}
+
+.icon-pending { color: #444; }
+.icon-running { color: #5c6aff; animation: pulse 1s infinite; }
+.icon-done { color: #22c55e; }
+.icon-error { color: #ef4444; }
+.icon-skipped { color: #555; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.stage-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 4px;
+}
+
+.stage-desc {
+  font-size: 11px;
+  color: #555;
+}
+
+.stage-bar {
+  margin-top: 10px;
+  height: 2px;
+  background: #222;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.stage-bar-fill {
+  height: 100%;
+  background: #5c6aff;
+  animation: progress 1.5s ease-in-out infinite;
+  width: 40%;
+}
+
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

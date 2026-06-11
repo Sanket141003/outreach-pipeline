@@ -1,54 +1,57 @@
 import axios from 'axios';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const SENIORITY = ['C-Suite', 'VP', 'Founder/Owner', 'Director'];
+// 'VP' is not valid on all Prospeo plans — use only confirmed valid values
+const SENIORITY = ['C-Suite', 'Founder/Owner', 'Director'];
 const BASE = 'https://api.prospeo.io';
 
 async function searchPeople(domain, env) {
   const MAX = parseInt(env.MAX_CONTACTS_PER_COMPANY || '2', 10);
 
-  // Try multiple filter approaches — Prospeo's company filter
-  // can use websites array or company name
-  const filterAttempts = [
-    // Attempt 1: filter by company website domain
-    {
-      company: { websites: { include: [domain] } },
-      person_seniority: { include: SENIORITY },
-    },
-    // Attempt 2: filter by company domain directly
-    {
-      company: { domains: { include: [domain] } },
-      person_seniority: { include: SENIORITY },
-    },
-    // Attempt 3: seniority only, no domain filter (broader)
-    {
-      person_seniority: { include: SENIORITY },
-      company: { websites: { include: [domain] } },
-    },
-  ];
+  try {
+    const res = await axios.post(
+      `${BASE}/search-person`,
+      {
+        page: 1,
+        filters: {
+          company: { websites: { include: [domain] } },
+          person_seniority: { include: SENIORITY },
+        },
+      },
+      {
+        headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
+        timeout: 15000,
+      }
+    );
 
-  for (const filters of filterAttempts) {
-    try {
-      const res = await axios.post(
-        `${BASE}/search-person`,
-        { page: 1, filters },
-        {
-          headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
-          timeout: 15000,
-        }
-      );
+    console.log(`Prospeo ${domain}:`, res.data.error ? res.data.error_code : `${res.data.results?.length || 0} results`);
 
-      console.log(`Prospeo search ${domain}:`, res.data.error ? res.data.error_code : `${res.data.results?.length || 0} results`);
-
-      if (res.data.error) continue;
-      const results = res.data.results || [];
-      if (results.length > 0) return results.slice(0, MAX);
-    } catch (err) {
-      console.log(`Prospeo search error for ${domain}:`, err.response?.data || err.message);
+    if (res.data.error) {
+      // If still invalid filters, try without seniority filter
+      if (res.data.error_code === 'INVALID_FILTERS') {
+        const res2 = await axios.post(
+          `${BASE}/search-person`,
+          {
+            page: 1,
+            filters: {
+              company: { websites: { include: [domain] } },
+            },
+          },
+          {
+            headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
+            timeout: 15000,
+          }
+        );
+        if (!res2.data.error) return (res2.data.results || []).slice(0, MAX);
+      }
+      return [];
     }
-    await sleep(300);
+
+    return (res.data.results || []).slice(0, MAX);
+  } catch (err) {
+    console.log(`Prospeo search error for ${domain}:`, err.response?.data || err.message);
+    return [];
   }
-  return [];
 }
 
 async function enrichPerson(personId, env) {
@@ -82,7 +85,7 @@ export async function findDecisionMakers(companies, env) {
       seen.add(person.person_id);
 
       const enriched = await enrichPerson(person.person_id, env);
-      await sleep(500);
+      await sleep(800);
 
       prospects.push({
         person_id: person.person_id,
@@ -94,7 +97,7 @@ export async function findDecisionMakers(companies, env) {
         company_domain: company.domain,
       });
     }
-    await sleep(300);
+    await sleep(1500); // avoid rate limit between companies
   }
 
   console.log(`Total prospects found: ${prospects.length}`);

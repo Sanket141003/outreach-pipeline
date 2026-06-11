@@ -17,20 +17,21 @@ async function resolveEmail(prospect, env) {
   // Try enrich-person with person_id first (cheaper)
   if (prospect.person_id) {
     try {
+      console.log(`Enriching ${prospect.full_name} with person_id: "${prospect.person_id}"`);
       const res = await axios.post(
         'https://api.prospeo.io/enrich-person',
-        { person_id: prospect.person_id },
+        { person_id: String(prospect.person_id) },
         {
           headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
           timeout: 20000,
         }
       );
 
-      console.log(`Enrich by person_id ${prospect.full_name}:`, res.data.error ? res.data.error_code : 'ok');
+      console.log(`Enrich by person_id ${prospect.full_name}:`, res.data.error ? `${res.data.error_code} — ${res.data.filter_error}` : 'ok');
 
       if (!res.data.error) {
         const email = res.data.person?.email?.email;
-        console.log(`Email for ${prospect.full_name}: ${email || 'null'}`);
+        console.log(`Email for ${prospect.full_name}: ${email || 'not revealed'}`);
         if (email) {
           return {
             ...prospect,
@@ -49,6 +50,7 @@ async function resolveEmail(prospect, env) {
   // Fallback: try with linkedin_url
   if (prospect.linkedin_url) {
     try {
+      console.log(`Enriching ${prospect.full_name} with linkedin_url: "${prospect.linkedin_url}"`);
       const res = await axios.post(
         'https://api.prospeo.io/enrich-person',
         { linkedin_url: prospect.linkedin_url },
@@ -58,11 +60,11 @@ async function resolveEmail(prospect, env) {
         }
       );
 
-      console.log(`Enrich by linkedin ${prospect.full_name}:`, res.data.error ? res.data.error_code : 'ok');
+      console.log(`Enrich by linkedin ${prospect.full_name}:`, res.data.error ? `${res.data.error_code}` : 'ok');
 
       if (!res.data.error) {
         const email = res.data.person?.email?.email;
-        console.log(`Email for ${prospect.full_name}: ${email || 'null'}`);
+        console.log(`Email for ${prospect.full_name}: ${email || 'not revealed'}`);
         if (email) {
           return {
             ...prospect,

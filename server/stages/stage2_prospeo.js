@@ -87,16 +87,24 @@ export async function findDecisionMakers(companies, env) {
       const enriched = await enrichPerson(person.person_id, env);
       await sleep(800);
 
-      // Grab email from enrichment if already revealed
+      // Log what we got back to debug linkedin_url and email fields
+      console.log(`Person ${person.full_name} — person fields:`, Object.keys(person));
+      console.log(`Person ${person.full_name} — linkedin_url:`, person.linkedin_url);
+      console.log(`Person ${person.full_name} — enriched linkedin:`, enriched?.linkedin_url);
+      console.log(`Person ${person.full_name} — enriched email:`, enriched?.email);
+
       const email = enriched?.email?.email || null;
+      const linkedin_url = enriched?.linkedin_url || person?.linkedin_url || person?.linkedin || null;
+
+      console.log(`Final linkedin for ${person.full_name}:`, linkedin_url);
 
       prospects.push({
         person_id: person.person_id,
         full_name: person.full_name || `${person.first_name} ${person.last_name}`.trim(),
         first_name: person.first_name || '',
         job_title: person.current_job_title || '',
-        linkedin_url: enriched?.linkedin_url || person?.linkedin_url || null,
-        email, // may already be present — Stage 3 will skip enrichment if so
+        linkedin_url,
+        email,
         company_name: result.company?.name || company.name,
         company_domain: company.domain,
       });

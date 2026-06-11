@@ -106,7 +106,10 @@ app.post('/api/run', async (req, res) => {
 
     send('done', { message: 'Pipeline complete!' });
   } catch (err) {
-    send('error', { message: err.message || 'Unexpected error' });
+    const detail = err.response
+      ? `HTTP ${err.response.status} — ${JSON.stringify(err.response.data)}`
+      : err.message;
+    send('error', { message: detail });
   } finally {
     clearInterval(keepAlive);
     res.end();

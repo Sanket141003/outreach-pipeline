@@ -10,22 +10,25 @@ import axios from 'axios';
 export async function findLookalikeCompanies(seedDomain, env) {
   const MAX = parseInt(env.MAX_LOOKALIKES || '5', 10);
 
-  const response = await axios.post(
-    'https://api.ocean.io/v1/similar',
-    {
-      domain: seedDomain,
-      limit: MAX,
-    },
-    {
-      headers: {
-        'x-api-key': env.OCEAN_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      timeout: 20000,
-    }
-  );
+  let response;
+  try {
+    response = await axios.post(
+      'https://api.ocean.io/v1/similar',
+      { domain: seedDomain, limit: MAX },
+      {
+        headers: {
+          'x-api-key': env.OCEAN_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        timeout: 20000,
+      }
+    );
+  } catch (err) {
+    const status = err.response?.status;
+    const body = JSON.stringify(err.response?.data);
+    throw new Error(`Ocean.io API error: ${status} — ${body || err.message}`);
+  }
 
-  // results = lookalike companies, companies = exact match for seed domain
   const results = response.data?.results || [];
 
   return results

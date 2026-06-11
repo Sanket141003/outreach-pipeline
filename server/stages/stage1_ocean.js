@@ -2,23 +2,20 @@ import axios from 'axios';
 
 /**
  * Ocean.io API
- * POST https://api.ocean.io/v2/companies/search
+ * Endpoint: POST https://api.ocean.io/v1/similar
  * Auth: x-api-key header
- * Uses lookalikeDomains filter inside companiesFiltersJson
+ * Body: { domain: "stripe.com", limit: 5 }
+ * Response: { results: [{ domain, name, score, ... }], companies: [...] }
  */
 export async function findLookalikeCompanies(seedDomain, env) {
   const MAX = parseInt(env.MAX_LOOKALIKES || '5', 10);
 
-  const payload = {
-    size: MAX,
-    companiesFiltersJson: JSON.stringify({
-      lookalikeDomains: [seedDomain],
-    }),
-  };
-
   const response = await axios.post(
-    'https://api.ocean.io/v2/companies/search',
-    payload,
+    'https://api.ocean.io/v1/similar',
+    {
+      domain: seedDomain,
+      limit: MAX,
+    },
     {
       headers: {
         'x-api-key': env.OCEAN_API_KEY,
@@ -28,14 +25,15 @@ export async function findLookalikeCompanies(seedDomain, env) {
     }
   );
 
-  const companies = response.data?.companies || [];
+  // results = lookalike companies, companies = exact match for seed domain
+  const results = response.data?.results || [];
 
-  return companies
+  return results
     .filter(c => c.domain && c.name)
     .slice(0, MAX)
     .map(c => ({
       domain: c.domain.toLowerCase().trim(),
       name: c.name,
-      score: c.matchRelevance || 0,
+      score: c.score || 0,
     }));
 }

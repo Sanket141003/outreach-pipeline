@@ -2,36 +2,39 @@ import axios from 'axios';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/**
+ * Stage 3 — Email resolution
+ *
+ * Prospeo's search-person already returns email in the person object
+ * when the email is revealed. We check that first.
+ * If not revealed, we call enrich-person with the person_id.
+ *
+ * Prospeo enrich-person body: { id: "person_id_value" }  (field is "id" not "person_id")
+ */
 async function resolveEmail(prospect, env) {
-  // First check if email was already resolved in Stage 2 enrichment
+  // Best case: email already present from Stage 2 search result
   if (prospect.email) {
-    console.log(`Email already present for ${prospect.full_name}: ${prospect.email}`);
+    console.log(`✓ Email already present for ${prospect.full_name}: ${prospect.email}`);
     return prospect;
   }
 
-  if (!prospect.linkedin_url && !prospect.person_id) {
-    console.log(`No linkedin_url or person_id for ${prospect.full_name} — skipping`);
-    return null;
-  }
-
-  // Try enrich-person with person_id first (cheaper)
+  // Try enrich-person with id field (correct field name per Prospeo docs)
   if (prospect.person_id) {
     try {
-      console.log(`Enriching ${prospect.full_name} with person_id: "${prospect.person_id}"`);
+      await sleep(2000); // respect rate limit
       const res = await axios.post(
         'https://api.prospeo.io/enrich-person',
-        { person_id: String(prospect.person_id) },
+        { id: prospect.person_id },
         {
           headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
           timeout: 20000,
         }
       );
 
-      console.log(`Enrich by person_id ${prospect.full_name}:`, res.data.error ? `${res.data.error_code} — ${res.data.filter_error}` : 'ok');
+      console.log(`Enrich ${prospect.full_name}:`, res.data.error ? res.data.error_code : 'ok');
 
       if (!res.data.error) {
         const email = res.data.person?.email?.email;
-        console.log(`Email for ${prospect.full_name}: ${email || 'not revealed'}`);
         if (email) {
           return {
             ...prospect,
@@ -40,45 +43,14 @@ async function resolveEmail(prospect, env) {
             full_name: res.data.person?.full_name || prospect.full_name,
           };
         }
+        console.log(`No email revealed for ${prospect.full_name} — not in Prospeo database`);
       }
     } catch (err) {
-      console.log(`Enrich person_id error for ${prospect.full_name}:`, err.response?.data || err.message);
-    }
-    await sleep(600);
-  }
-
-  // Fallback: try with linkedin_url
-  if (prospect.linkedin_url) {
-    try {
-      console.log(`Enriching ${prospect.full_name} with linkedin_url: "${prospect.linkedin_url}"`);
-      const res = await axios.post(
-        'https://api.prospeo.io/enrich-person',
-        { linkedin_url: prospect.linkedin_url },
-        {
-          headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
-          timeout: 20000,
-        }
-      );
-
-      console.log(`Enrich by linkedin ${prospect.full_name}:`, res.data.error ? `${res.data.error_code}` : 'ok');
-
-      if (!res.data.error) {
-        const email = res.data.person?.email?.email;
-        console.log(`Email for ${prospect.full_name}: ${email || 'not revealed'}`);
-        if (email) {
-          return {
-            ...prospect,
-            email,
-            first_name: res.data.person?.first_name || prospect.first_name,
-            full_name: res.data.person?.full_name || prospect.full_name,
-          };
-        }
-      }
-    } catch (err) {
-      console.log(`Enrich linkedin error for ${prospect.full_name}:`, err.response?.data || err.message);
+      console.log(`Enrich error for ${prospect.full_name}:`, err.response?.data || err.message);
     }
   }
 
+  console.log(`✗ Could not resolve email for ${prospect.full_name}`);
   return null;
 }
 
@@ -89,9 +61,8 @@ export async function resolveEmails(prospects, env) {
   for (const p of prospects) {
     const c = await resolveEmail(p, env);
     if (c) contacts.push(c);
-    await sleep(800);
   }
 
-  console.log(`Resolved ${contacts.length} emails out of ${prospects.length} prospects`);
+  console.log(`Resolved ${contacts.length}/${prospects.length} emails`);
   return contacts;
 }

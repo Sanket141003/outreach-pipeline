@@ -87,16 +87,11 @@ export async function findDecisionMakers(companies, env) {
       const enriched = await enrichPerson(person.person_id, env);
       await sleep(800);
 
-      // Log what we got back to debug linkedin_url and email fields
-      console.log(`Person ${person.full_name} — person fields:`, Object.keys(person));
-      console.log(`Person ${person.full_name} — linkedin_url:`, person.linkedin_url);
-      console.log(`Person ${person.full_name} — enriched linkedin:`, enriched?.linkedin_url);
-      console.log(`Person ${person.full_name} — enriched email:`, enriched?.email);
+      // email and linkedin_url are already in the search-person response
+      const email = person?.email?.email || enriched?.email?.email || null;
+      const linkedin_url = person?.linkedin_url || enriched?.linkedin_url || null;
 
-      const email = enriched?.email?.email || null;
-      const linkedin_url = enriched?.linkedin_url || person?.linkedin_url || person?.linkedin || null;
-
-      console.log(`Final linkedin for ${person.full_name}:`, linkedin_url);
+      console.log(`${person.full_name} — email: ${email}, linkedin: ${linkedin_url}`);
 
       prospects.push({
         person_id: person.person_id,

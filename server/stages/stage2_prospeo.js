@@ -6,26 +6,49 @@ const BASE = 'https://api.prospeo.io';
 
 async function searchPeople(domain, env) {
   const MAX = parseInt(env.MAX_CONTACTS_PER_COMPANY || '2', 10);
-  try {
-    const res = await axios.post(
-      `${BASE}/search-person`,
-      {
-        page: 1,
-        filters: {
-          company: { websites: { include: [domain] } },
-          person_seniority: { include: SENIORITY },
-        },
-      },
-      {
-        headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
-        timeout: 15000,
-      }
-    );
-    if (res.data.error) return [];
-    return (res.data.results || []).slice(0, MAX);
-  } catch {
-    return [];
+
+  // Try multiple filter approaches — Prospeo's company filter
+  // can use websites array or company name
+  const filterAttempts = [
+    // Attempt 1: filter by company website domain
+    {
+      company: { websites: { include: [domain] } },
+      person_seniority: { include: SENIORITY },
+    },
+    // Attempt 2: filter by company domain directly
+    {
+      company: { domains: { include: [domain] } },
+      person_seniority: { include: SENIORITY },
+    },
+    // Attempt 3: seniority only, no domain filter (broader)
+    {
+      person_seniority: { include: SENIORITY },
+      company: { websites: { include: [domain] } },
+    },
+  ];
+
+  for (const filters of filterAttempts) {
+    try {
+      const res = await axios.post(
+        `${BASE}/search-person`,
+        { page: 1, filters },
+        {
+          headers: { 'X-KEY': env.PROSPEO_API_KEY, 'Content-Type': 'application/json' },
+          timeout: 15000,
+        }
+      );
+
+      console.log(`Prospeo search ${domain}:`, res.data.error ? res.data.error_code : `${res.data.results?.length || 0} results`);
+
+      if (res.data.error) continue;
+      const results = res.data.results || [];
+      if (results.length > 0) return results.slice(0, MAX);
+    } catch (err) {
+      console.log(`Prospeo search error for ${domain}:`, err.response?.data || err.message);
+    }
+    await sleep(300);
   }
+  return [];
 }
 
 async function enrichPerson(personId, env) {
@@ -50,6 +73,7 @@ export async function findDecisionMakers(companies, env) {
   const seen = new Set();
 
   for (const company of companies) {
+    console.log(`Searching decision-makers at: ${company.domain}`);
     const results = await searchPeople(company.domain, env);
 
     for (const result of results) {
@@ -73,5 +97,6 @@ export async function findDecisionMakers(companies, env) {
     await sleep(300);
   }
 
+  console.log(`Total prospects found: ${prospects.length}`);
   return prospects;
 }

@@ -6,29 +6,27 @@ export async function findLookalikeCompanies(seedDomain) {
   logger.info(`Querying Ocean.io for lookalikes of: ${seedDomain}`);
 
   const response = await axios.post(
-    'https://api.ocean.io/v1/similar',
-    { domain: seedDomain, limit: MAX },
+    'https://api.ocean.io/v3/search/companies',
+    {
+      size: MAX,
+      companiesFilters: { lookalikeDomains: [seedDomain] },
+    },
     {
       headers: {
-        'x-api-key': process.env.OCEAN_API_KEY,
+        'x-api-token': process.env.OCEAN_API_KEY,
         'Content-Type': 'application/json',
       },
       timeout: 20000,
     }
   );
 
-  const results = response.data?.results || [];
-  if (results.length === 0) {
+  const companies = response.data?.companies || [];
+  if (companies.length === 0) {
     logger.warn('Ocean.io returned 0 results.');
     return [];
   }
-
-  return results
+  return companies
     .filter(c => c.domain && c.name)
     .slice(0, MAX)
-    .map(c => ({
-      domain: c.domain.toLowerCase().trim(),
-      name: c.name,
-      score: c.score || 0,
-    }));
+    .map(c => ({ domain: c.domain.toLowerCase().trim(), name: c.name, score: c.score || 0 }));
 }

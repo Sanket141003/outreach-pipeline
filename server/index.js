@@ -71,7 +71,7 @@ app.post('/api/run', async (req, res) => {
     send('stage1_done', { companies });
 
     if (companies.length === 0) {
-      send('error', { message: 'No lookalike companies found.' });
+      send('error', { message: 'No lookalike companies found. Ocean.io returned 0 results — check Render logs for the raw API response.' });
       return res.end();
     }
 

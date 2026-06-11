@@ -44,11 +44,6 @@ export default function PipelineRunner({ config, onReset }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             domain: config.domain,
-            ocean: config.ocean,
-            prospeo: config.prospeo,
-            brevo: config.brevo,
-            senderEmail: config.senderEmail,
-            senderName: config.senderName,
             dryRun: config.dryRun,
           }),
           signal: controller.signal,

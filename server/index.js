@@ -23,11 +23,19 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
  * Uses POST so API keys never appear in server access logs
  */
 app.post('/api/run', async (req, res) => {
-  const { domain, ocean, prospeo, brevo, senderEmail, senderName, dryRun } = req.body;
+  const { domain, dryRun } = req.body;
 
   if (!domain) return res.status(400).json({ error: 'domain is required' });
+
+  // API keys come from server environment variables — never from the client
+  const ocean = process.env.OCEAN_API_KEY;
+  const prospeo = process.env.PROSPEO_API_KEY;
+  const brevo = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.SENDER_EMAIL;
+  const senderName = process.env.SENDER_NAME;
+
   if (!ocean || !prospeo || !brevo || !senderEmail || !senderName) {
-    return res.status(400).json({ error: 'All API keys and sender details are required' });
+    return res.status(500).json({ error: 'Server is missing API key configuration. Contact the administrator.' });
   }
 
   // Set up SSE
@@ -52,8 +60,8 @@ app.post('/api/run', async (req, res) => {
     BREVO_API_KEY: brevo,
     SENDER_EMAIL: senderEmail,
     SENDER_NAME: senderName,
-    MAX_LOOKALIKES: '5',
-    MAX_CONTACTS_PER_COMPANY: '2',
+    MAX_LOOKALIKES: process.env.MAX_LOOKALIKES || '5',
+    MAX_CONTACTS_PER_COMPANY: process.env.MAX_CONTACTS_PER_COMPANY || '2',
   };
 
   try {

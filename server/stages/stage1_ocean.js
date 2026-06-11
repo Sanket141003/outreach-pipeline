@@ -58,12 +58,19 @@ export async function findLookalikeCompanies(seedDomain, env) {
     return [];
   }
 
+  // Log first item to see field names
+  console.log('Ocean.io first item keys:', Object.keys(items[0] || {}));
+  console.log('Ocean.io first item sample:', JSON.stringify(items[0]).slice(0, 300));
+
   return items
-    .filter(c => c.domain && c.name)
+    .filter(c => c.domain || c.website || c.companyDomain || c.url)
     .slice(0, MAX)
-    .map(c => ({
-      domain: c.domain.toLowerCase().trim(),
-      name: c.name,
-      score: c.score || c.matchRelevance || 0,
-    }));
+    .map(c => {
+      // Handle all possible field name variants
+      const domain = (c.domain || c.companyDomain || c.website || c.url || '')
+        .replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase().trim();
+      const name = c.name || c.companyName || c.company_name || domain;
+      return { domain, name, score: c.score || c.matchRelevance || c.relevance || 0 };
+    })
+    .filter(c => c.domain);
 }
